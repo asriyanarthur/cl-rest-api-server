@@ -4,7 +4,8 @@
 (in-package :my-server)
 
 ;;(proclaim '(optimize (debug 3)))
-;;(declaim (optimize (speed 0) (space 0) (debug 3)))
+;;(declaim (optimize (debug 2))
+;;(declaim (optimize (speed 0) (space 0) (debug 3) (safety 0)))
 
 ;;(ql:quickload :ningle)
 ;;(ql:quickload :clack)
@@ -55,11 +56,11 @@ ROUND-FUNCTION - округляющая функция, например:
   (float (round-to-ratio number precision round-function)))
 
 (defun zmy-validation (zdate zrate zperiods zamount)
-  "check params"
-  (if (and (numberp zrate)
-	   (numberp zperiods)
-	   (numberp zamount )) 
-      (if (or (eq zdate nil)
+  "check params, if T - then error"
+      (if (or (not (numberp zrate))
+	      (not (numberp zperiods))
+	      (not (numberp zamount))
+	      (eq zdate nil)
 	      (eq zrate nil)
 	      (eq zperiods nil)
 	      (eq zamount nil)
@@ -68,13 +69,10 @@ ROUND-FUNCTION - округляющая функция, например:
 	      (< zamount 10000)
 	      (> zamount 3000000)
 	      (> zperiods 60)
-	      (< zperiods 1))
-	  t nil)
-      t))
-  
+	      (< zperiods 1)) 
+	  t nil))
 
 (defun mdeposit-pre (params)
-  ;;(break)
   (let ((zdate (write-to-string (cdr (assoc "date" params :test #'string=))))
 	(zrate (cdr (assoc "rate" params :test #'string=)))
 	(zperiods (cdr (assoc "periods" params :test #'string=)))
@@ -90,32 +88,32 @@ ROUND-FUNCTION - округляющая функция, например:
       (setf loop-res (nreverse loop-res))
       (loop :for y :in loop-res :do
 	   (setf cumm-amount (* cumm-amount (+ 1 (/ zrate 12 100))))
-	   (push (cons (zmy-date-converter-out y) (round-to-float cumm-amount 2)) loop-res2))) loop-res2))
+	   (push (cons (zmy-date-converter-out y) (round-to-float cumm-amount 2)) loop-res2)))
+    loop-res2))
 
 (defun mdeposit (params)
   (let ((loop-res2 (mdeposit-pre params))
 	(loop-res3 '()))
     (push "{" loop-res3)
-    (cond ((eq loop-res2 nil)
-	   `(400 (content-type "application/json") "{ \"error\": \" description of error in my taste \"}" ))
+    (cond ((eq loop-res2 nil) 
+	   `(400 (:content-type "application/json") ("{\"error\":\"description of error in my taste\"}")))
 	  (t (loop :for x :in (nreverse loop-res2) :do
 		(push (concatenate 'string
 				   "\""
 				   (car x)
 				   "\": "
-				   (write-to-string (cdr x)) )
+				   (write-to-string (cdr x)))
 		      loop-res3))
 	     (push "}" loop-res3)
-	     `(200 (content-type "application/json") ,(nreverse loop-res3))
+	     `(200 (:content-type "application/json") ,(nreverse loop-res3))
 	     ))))
 
 (defun adeposit (params)
   (let ((loop-res2 (mdeposit-pre params)))
-    (let ((last-sum (cdr (car loop-res2))) ;(parse-number:parse-number (substitute #\. #\, (write-to-string (cdr (car loop-res2))))))
-	  (init-sum (cdr (assoc "amount" params :test #'string=)))) ;(parse-number:parse-number (substitute #\. #\, (write-to-string (cdr (assoc "amount" params :test #'string=)))))))
-					;      (format t "~A" loop-res2)
+    (let ((last-sum (cdr (car loop-res2))) 
+	  (init-sum (cdr (assoc "amount" params :test #'string=)))) 
       (cond ((eq loop-res2 nil)
-	     `(400 (content-type "application/json") "{ \"error\": \" description of error in my taste \"}" ))
+	     `(400 (:content-type "application/json") ("{ \"error\":\" description of error in my taste\"}")))
 	     (t `(200 (:content-type "application/json") ,(concatenate 'string
 							     "{ \"profit\": "
 							     (write-to-string (round-to-float (- last-sum init-sum) 2))
@@ -134,14 +132,19 @@ ROUND-FUNCTION - округляющая функция, например:
   (clack:clackup *app* :port 8080 :address "0.0.0.0")  
   (loop :do (sleep 5)))
 
-(defun test111()
-    (let (( zzz '(("rate" . 3) ("amount" . 10000) ("periods" . 3) ("date" . 01.12.2019))))
-      (mdeposit zzz)))
- 
+;;(defun test111()
+;;    (let (( zzz '(("rate" . 3.7) ("amount" . 450000) ("periods" . 0) ("date" . 31.12.2020))))
+;;      (mdeposit zzz)))
+
+;;(defun test222()
+;;    (let (( zzz '(("rate" . 3.5) ("amount" . 10000) ("periods" . 0) ("date" . 01.01.2019))))
+;;      (adeposit zzz)))
+
+;;(defun test333()
+;;  (zmy-validation "01.01.2020" 10 1 500000))
+
 ;;(defun test222()
 ;;    (zmy-validation "|asdas.13.2019|" 3 5 120000))
-
-
 
 ;;#+sb-core-compression
 ;;(defmethod asdf:perform ((o asdf:image-op) (c asdf:system))
