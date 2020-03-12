@@ -102,9 +102,11 @@ ROUND-FUNCTION - округляющая функция, например:
 				   "\""
 				   (car x)
 				   "\": "
-				   (write-to-string (cdr x)))
-		      loop-res3))
-	     (push "}" loop-res3)
+				   (write-to-string (cdr x))
+				   ",")
+		      loop-res3)
+		  :finally (setf (car loop-res3) (substitute #\SPACE #\, (car loop-res3))))
+	     (push "}" loop-res3)	      
 	     `(200 (:content-type "application/json") ,(nreverse loop-res3))
 	     ))))
 
@@ -114,10 +116,10 @@ ROUND-FUNCTION - округляющая функция, например:
 	  (init-sum (cdr (assoc "amount" params :test #'string=)))) 
       (cond ((eq loop-res2 nil)
 	     `(400 (:content-type "application/json") ("{ \"error\":\" description of error in my taste\"}")))
-	     (t `(200 (:content-type "application/json") ,(concatenate 'string
+	     (t `(200 (:content-type "application/json") (,(concatenate 'string
 							     "{ \"profit\": "
 							     (write-to-string (round-to-float (- last-sum init-sum) 2))
-							     "}")))))))
+							     "}"))))))))
       
 (defvar *app* (make-instance 'ningle:app))
 
@@ -132,9 +134,9 @@ ROUND-FUNCTION - округляющая функция, например:
   (clack:clackup *app* :port 8080 :address "0.0.0.0")  
   (loop :do (sleep 5)))
 
-;;(defun test111()
-;;    (let (( zzz '(("rate" . 3.7) ("amount" . 450000) ("periods" . 0) ("date" . 31.12.2020))))
-;;      (mdeposit zzz)))
+(defun test111()
+    (let (( zzz '(("rate" . 3.7) ("amount" . 450000) ("periods" . 5) ("date" . 31.12.2020))))
+      (mdeposit zzz)))
 
 ;;(defun test222()
 ;;    (let (( zzz '(("rate" . 3.5) ("amount" . 10000) ("periods" . 0) ("date" . 01.01.2019))))
